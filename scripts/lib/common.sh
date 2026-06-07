@@ -105,7 +105,7 @@ EOF
 
 check_remote_prereqs() {
   local out
-  if ! out="$(ssh "${SERVER_USER}@${SERVER_HOST}" 'set -e; command -v docker >/dev/null 2>&1 || echo "__MISSING_DOCKER__"; docker compose version >/dev/null 2>&1 || echo "__MISSING_COMPOSE__"; groups' 2>/dev/null)"; then
+  if ! out="$(ssh -o BatchMode=yes "${SERVER_USER}@${SERVER_HOST}" 'set -e; command -v docker >/dev/null 2>&1 || echo "__MISSING_DOCKER__"; docker compose version >/dev/null 2>&1 || echo "__MISSING_COMPOSE__"; groups' 2>/dev/null)"; then
     echo "Klarte ikke koble til ${SERVER_USER}@${SERVER_HOST} via SSH." >&2
     echo "Sjekk SSH-tilgang først (ssh ${SERVER_USER}@${SERVER_HOST})." >&2
     exit 1
@@ -122,11 +122,13 @@ check_remote_prereqs() {
   fi
   if ! grep -qw "docker" <<<"$out"; then
     echo "Advarsel: bruker ${SERVER_USER} ser ikke ut til å være i docker-gruppen."
-    echo "Da må kommandoene kjøres med sudo eller gruppetilhørighet må oppdateres."
+    echo "Kjør bootstrap på nytt eller: sudo usermod -aG docker ${SERVER_USER}"
   fi
 
   if [ "$missing" = true ]; then
     echo
+    echo "Kjør install-scriptet uten INSTALL_SKIP_BOOTSTRAP for automatisk oppsett,"
+    echo "eller installer manuelt:"
     print_remote_prereq_help
     echo
     exit 1

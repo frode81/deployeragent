@@ -5,7 +5,7 @@
 NODE_PACKAGE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 # Standard GitHub-repo (publiser innholdet av node/ + agent/ via prepare-standalone.sh)
-: "${NODE_INSTALL_REPO:=https://github.com/webserverpanel/webserverpanel-node.git}"
+: "${NODE_INSTALL_REPO:=https://github.com/frode81/deployeragent.git}"
 : "${NODE_INSTALL_REF:=main}"
 : "${NODE_INSTALL_SOURCE:=auto}"
 

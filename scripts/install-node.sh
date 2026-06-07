@@ -7,19 +7,22 @@ NODE_PACKAGE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${NODE_PACKAGE_ROOT}/scripts/lib/common.sh"
 # shellcheck source=lib/fetch-bundle.sh
 source "${NODE_PACKAGE_ROOT}/scripts/lib/fetch-bundle.sh"
+# shellcheck source=lib/remote-bootstrap.sh
+source "${NODE_PACKAGE_ROOT}/scripts/lib/remote-bootstrap.sh"
 
 require_cmd ssh
 require_cmd rsync
 require_cmd openssl
 
 echo "== Webserver Panel node-installasjon =="
-echo "Henter filer fra GitHub-pakke eller lokal monorepo, setter opp node via SSH."
+echo "Bootstrap (deploy-bruker + Docker), henter pakke, setter opp node via SSH."
 echo
 
 resolve_node_bundle
 
 prompt_or_env SERVER_HOST "Server IP/host" "204.168.157.12"
-prompt_or_env SERVER_USER "SSH-bruker" "deploy"
+prompt_or_env BOOTSTRAP_SSH_USER "SSH-bruker for bootstrap (root på fersk server)" "root"
+prompt_or_env SERVER_USER "Deploy-bruker på noden" "deploy"
 prompt_or_env REMOTE_ROOT "Remote rotmappe" "/home/deploy/skybygger"
 
 prompt_or_env BASE_DOMAIN "BASE_DOMAIN (f.eks. apps.webserverpanel.com)" "apps.webserverpanel.com"
@@ -63,16 +66,17 @@ fi
 
 echo
 echo "== Oppsummering =="
-echo "Server: ${SERVER_USER}@${SERVER_HOST}"
+echo "Server: ${SERVER_USER}@${SERVER_HOST} (bootstrap via ${BOOTSTRAP_SSH_USER})"
 echo "Remote root: ${REMOTE_ROOT}"
 echo "BASE_DOMAIN: ${BASE_DOMAIN}"
 echo "Agent host: ${AGENT_HOST}"
 echo "Kilde: ${NODE_INSTALL_SOURCE:-auto} (${BUNDLE_ROOT})"
 echo
 
-echo "== Preflight remote forutsetninger =="
+echo "== Bootstrap og forutsetninger =="
+ensure_remote_ready "$BOOTSTRAP_SSH_USER" "$SERVER_USER" "$REMOTE_ROOT" "$SERVER_HOST"
 check_remote_prereqs
-echo "OK: docker + compose ser tilgjengelig ut."
+echo "OK: docker + compose klart for ${SERVER_USER}."
 echo
 
 if ! ask_yes_no "Fortsette med installasjon?" "y" "INSTALL_CONFIRM"; then

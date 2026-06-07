@@ -34,5 +34,5 @@ rsync -a --delete \
 echo
 echo "Ferdig. node/ er klar til å publiseres som eget repo:"
 echo "  cd node && git init && git add . && git commit -m 'Release node installer'"
-echo "  git remote add origin ${NODE_INSTALL_REPO:-https://github.com/webserverpanel/webserverpanel-node.git}"
+echo "  git remote add origin ${NODE_INSTALL_REPO:-https://github.com/frode81/deployeragent.git}"
 echo "  git push -u origin main"
