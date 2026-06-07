@@ -54,9 +54,15 @@ sync_bundle_local() {
     "${bundle_scripts}/cleanup-agent-server-smart.sh" \
     "${bundle_scripts}/cleanup-agent-server-remote.sh" \
     "${bundle_scripts}/install-agent-cleanup-timer-local.sh" \
+    "${bundle_scripts}/install-agent-cleanup-timer-remote.sh" \
     "${bundle_scripts}/configure-docker-registry-mirror.sh" \
     "${bundle_scripts}/sync-agent.sh" \
     "$scripts_dir/"
+  chmod +x "$scripts_dir"/*.sh 2>/dev/null || true
+  if [ -d "${bundle_scripts}/systemd" ]; then
+    mkdir -p "${scripts_dir}/systemd"
+    cp -f "${bundle_scripts}/systemd/"* "${scripts_dir}/systemd/"
+  fi
 
   if [ "$(id -u)" -eq 0 ] && [ "$(whoami)" != "$deploy_user" ]; then
     chown -R "${deploy_user}:${deploy_user}" "${remote_root}"
@@ -98,6 +104,12 @@ sync_bundle_remote() {
     "${bundle_scripts}/configure-docker-registry-mirror.sh" \
     "${bundle_scripts}/sync-agent.sh" \
     "${server_user}@${server_host}:${scripts_dir}/"
+  if [ -d "${bundle_scripts}/systemd" ]; then
+    rsync -az \
+      --omit-dir-times --no-times --no-perms --no-owner --no-group \
+      "${bundle_scripts}/systemd/" \
+      "${server_user}@${server_host}:${scripts_dir}/systemd/"
+  fi
 }
 
 configure_registry_mirror_local() {
@@ -242,21 +254,20 @@ install_cleanup_timer_local() {
   local remote_root="$1"
   local deploy_user="$2"
   local scripts_dir="$3"
-  local script_dir
-  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  local systemd_dir="${scripts_dir}/systemd"
 
   sed "s|/home/deploy/skybygger|${remote_root}|g; s|^User=deploy|User=${deploy_user}|" \
-    "${script_dir}/systemd/agent-cleanup.service" >/tmp/agent-cleanup.service
+    "${systemd_dir}/agent-cleanup.service" >/tmp/agent-cleanup.service
 
   if [ "$(id -u)" -eq 0 ]; then
     install -m 0644 /tmp/agent-cleanup.service /etc/systemd/system/agent-cleanup.service
-    install -m 0644 "${script_dir}/systemd/agent-cleanup.timer" /etc/systemd/system/agent-cleanup.timer
+    install -m 0644 "${systemd_dir}/agent-cleanup.timer" /etc/systemd/system/agent-cleanup.timer
     systemctl daemon-reload
     systemctl enable --now agent-cleanup.timer
     systemctl status --no-pager agent-cleanup.timer
   else
     sudo install -m 0644 /tmp/agent-cleanup.service /etc/systemd/system/agent-cleanup.service
-    sudo install -m 0644 "${script_dir}/systemd/agent-cleanup.timer" /etc/systemd/system/agent-cleanup.timer
+    sudo install -m 0644 "${systemd_dir}/agent-cleanup.timer" /etc/systemd/system/agent-cleanup.timer
     sudo systemctl daemon-reload
     sudo systemctl enable --now agent-cleanup.timer
     sudo systemctl status --no-pager agent-cleanup.timer
