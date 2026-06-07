@@ -273,3 +273,71 @@ install_cleanup_timer_local() {
     sudo systemctl status --no-pager agent-cleanup.timer
   fi
 }
+
+detect_server_public_ip() {
+  local install_mode="$1"
+  local server_host="${2:-}"
+  local ip=""
+
+  if [ "$install_mode" = "local" ]; then
+    for url in "https://api.ipify.org" "https://ifconfig.me/ip" "https://icanhazip.com"; do
+      ip="$(curl -4 -fsSL --max-time 6 "$url" 2>/dev/null | tr -d '[:space:]')"
+      if [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "$ip"
+        return 0
+      fi
+      ip=""
+    done
+    ip="$(hostname -I 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i !~ /^127\./) {print $i; exit}}')"
+  else
+    if [[ "$server_host" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      ip="$server_host"
+    elif [ -n "$server_host" ]; then
+      ip="$(getent ahostsv4 "$server_host" 2>/dev/null | awk '{print $1; exit}')"
+    fi
+  fi
+
+  if [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "$ip"
+  fi
+}
+
+print_install_summary() {
+  local install_mode="$1"
+  local server_host="$2"
+  local base_domain="$3"
+  local agent_host="$4"
+  local agent_secret="$5"
+
+  local server_ip
+  server_ip="$(detect_server_public_ip "$install_mode" "$server_host")"
+
+  echo
+  echo "══════════════════════════════════════════════════════════════"
+  echo "  Ferdig — Webserver Panel node"
+  echo "══════════════════════════════════════════════════════════════"
+  echo
+  if [ -n "$server_ip" ]; then
+    echo "Server IP: ${server_ip}"
+  else
+    echo "Server IP: (fant ikke automatisk — sjekk hos leverandøren din)"
+  fi
+  echo
+  echo "DNS — legg inn disse A-records hos domeneleverandøren:"
+  echo "  (Pek begge mot server-IP${server_ip:+ ${server_ip}})"
+  echo
+  printf "  %-32s  A  →  %s\n" "*.${base_domain}" "${server_ip:-DIN_SERVER_IP}"
+  printf "  %-32s  A  →  %s\n" "${agent_host}" "${server_ip:-DIN_SERVER_IP}"
+  echo
+  echo "Eksempler når DNS er propagert:"
+  echo "  Bruker-apper:  https://min-app.${base_domain}"
+  echo "  Agent health:  https://${agent_host}/health"
+  echo
+  echo "Dashboard — legg til server:"
+  echo "  AGENT_URL=https://${agent_host}"
+  echo "  AGENT_SECRET=${agent_secret}"
+  echo
+  echo "Tips: DNS kan ta noen minutter. Test med:"
+  echo "  curl -I https://${agent_host}/health"
+  echo "══════════════════════════════════════════════════════════════"
+}

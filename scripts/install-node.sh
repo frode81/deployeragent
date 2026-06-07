@@ -173,9 +173,4 @@ else
   fi
 fi
 
-echo
-echo "Ferdig."
-echo "Agent health URL: https://${AGENT_HOST}/health"
-echo "Sett i dashboard:"
-echo "  AGENT_URL=https://${AGENT_HOST}"
-echo "  AGENT_SECRET=${AGENT_SECRET}"
+print_install_summary "$INSTALL_MODE" "${SERVER_HOST:-}" "$BASE_DOMAIN" "$AGENT_HOST" "$AGENT_SECRET"
