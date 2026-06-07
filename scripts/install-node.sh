@@ -30,6 +30,11 @@ echo
 
 resolve_node_bundle
 
+if [ -r /dev/tty ] 2>/dev/null && [ -z "${BASE_DOMAIN:-}" ]; then
+  echo "Fyll inn verdiene under (Enter = default)." >/dev/tty
+  echo
+fi
+
 prompt_or_env SERVER_USER "Deploy-bruker på noden" "deploy"
 prompt_or_env REMOTE_ROOT "Rotmappe for node-filer" "/home/${SERVER_USER}/skybygger"
 

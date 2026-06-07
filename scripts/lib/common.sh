@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 # Felles hjelpefunksjoner for node-installasjon.
 
+_tty_in() {
+  if [ -r /dev/tty ] 2>/dev/null; then
+    echo "/dev/tty"
+  else
+    echo "/dev/stdin"
+  fi
+}
+
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
     echo "Mangler kommando: $1" >&2
@@ -13,11 +21,13 @@ prompt() {
   local label="$2"
   local default_value="${3:-}"
   local value
+  local tty_in
+  tty_in="$(_tty_in)"
   if [ -n "$default_value" ]; then
-    read -r -p "${label} [${default_value}]: " value
+    read -r -p "${label} [${default_value}]: " value <"$tty_in"
     value="${value:-$default_value}"
   else
-    read -r -p "${label}: " value
+    read -r -p "${label}: " value <"$tty_in"
   fi
   printf -v "$var_name" '%s' "$value"
 }
@@ -27,12 +37,14 @@ prompt_secret() {
   local label="$2"
   local default_value="${3:-}"
   local value
+  local tty_in
+  tty_in="$(_tty_in)"
   if [ -n "$default_value" ]; then
-    read -r -s -p "${label} [skjult, Enter for default]: " value
+    read -r -s -p "${label} [skjult, Enter for default]: " value <"$tty_in"
     echo
     value="${value:-$default_value}"
   else
-    read -r -s -p "${label}: " value
+    read -r -s -p "${label}: " value <"$tty_in"
     echo
   fi
   printf -v "$var_name" '%s' "$value"
@@ -73,7 +85,9 @@ ask_yes_no() {
     esac
   fi
   local raw answer
-  read -r -p "${label} [y/n, default ${default_value}]: " raw
+  local tty_in
+  tty_in="$(_tty_in)"
+  read -r -p "${label} [y/n, default ${default_value}]: " raw <"$tty_in"
   answer="${raw:-$default_value}"
   [[ "$answer" =~ ^[Yy]$ ]]
 }
