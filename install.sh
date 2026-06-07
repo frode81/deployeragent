@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 #
-# Bootstrap for node-installasjon. Kan kjøres direkte fra repo eller via curl:
+# Kjør på serveren (anbefalt):
 #
 #   curl -fsSL https://raw.githubusercontent.com/frode81/deployeragent/refs/heads/main/install.sh | bash
 #
-# Med miljøvariabler (ikke-interaktivt):
+# Eller fra lokal maskin mot annen server (remote/SSH):
 #
-#   SERVER_HOST=1.2.3.4 BOOTSTRAP_SSH_USER=root BASE_DOMAIN=apps.example.com \
+#   SERVER_HOST=1.2.3.4 INSTALL_MODE=remote \
+#     curl -fsSL .../install.sh | bash
+#
+# Ikke-interaktivt på server:
+#
+#   BASE_DOMAIN=apps.example.com ACME_EMAIL=you@example.com \
 #     AGENT_SECRET=... INSTALL_CONFIRM=y INSTALL_CLEANUP_TIMER=y \
 #     curl -fsSL .../install.sh | bash
 #
