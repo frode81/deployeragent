@@ -86,8 +86,7 @@ services:
     restart: unless-stopped
     networks:
       - webserverpanel-net
-    ports:
-      - "2080:2080"
+    # Kun internt — dashboard når agent via Traefik (agent.${BASE_DOMAIN})
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - agent-data:/data

@@ -9,6 +9,8 @@ source "${NODE_PACKAGE_ROOT}/scripts/lib/common.sh"
 source "${NODE_PACKAGE_ROOT}/scripts/lib/fetch-bundle.sh"
 # shellcheck source=lib/bootstrap-core.sh
 source "${NODE_PACKAGE_ROOT}/scripts/lib/bootstrap-core.sh"
+# shellcheck source=lib/harden-server.sh
+source "${NODE_PACKAGE_ROOT}/scripts/lib/harden-server.sh"
 # shellcheck source=lib/remote-bootstrap.sh
 source "${NODE_PACKAGE_ROOT}/scripts/lib/remote-bootstrap.sh"
 # shellcheck source=lib/install-stack.sh
@@ -110,6 +112,21 @@ else
 fi
 echo "OK: docker + compose klart."
 echo
+
+if hardening_enabled; then
+  echo "== Sikkerhets-hardening =="
+  if [ "$INSTALL_MODE" = "local" ]; then
+    if [ "$(id -u)" -eq 0 ]; then
+      harden_server "$SERVER_USER"
+    else
+      echo "Advarsel: hardening krever root på serveren — hoppet over." >&2
+      echo "         Kjør install som root, eller sett INSTALL_HARDEN=n." >&2
+    fi
+  else
+    remote_harden_server "$BOOTSTRAP_SSH_USER" "$SERVER_USER" "$SERVER_HOST"
+  fi
+  echo
+fi
 
 if ! ask_yes_no "Fortsette med installasjon?" "y" "INSTALL_CONFIRM"; then
   echo "Avbrutt."

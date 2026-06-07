@@ -14,8 +14,9 @@ Scriptet gjør alt på serveren:
 
 - Oppretter `deploy`-bruker (hvis mangler)
 - Installerer Docker + Compose
+- **Hardening:** UFW (22/80/443), automatisk sikkerhetsoppdateringer
 - Henter agent/infrastructure fra GitHub
-- Starter hele stacken
+- Starter hele stacken (agent kun internt — nås via Traefik)
 
 Du trenger **ikke** egen lokal maskin med rsync/SSH.
 
@@ -81,6 +82,24 @@ git push origin main
 | `INSTALL_CONFIRM` | `y` — hopp over bekreftelse |
 | `INSTALL_CLEANUP_TIMER` | `y` — installer systemd cleanup-timer |
 | `INSTALL_SKIP_BOOTSTRAP` | `y` — hopp over deploy/Docker-oppsett |
+| `INSTALL_HARDEN` | `y` (default) — UFW + unattended-upgrades. Sett `n` for å slå av |
+| `INSTALL_HARDEN_SSH` | `y` — deaktiver passord/root-SSH (kun når `deploy` har SSH-nøkler) |
+
+### Sikkerhet
+
+Standard hardening (som root):
+
+- **UFW:** tillater innkommende 22, 80, 443 — avviser resten
+- **unattended-upgrades:** sikkerhetspatcher installeres automatisk
+- **Agent:** eksponeres ikke på verts-port — kun via `https://agent.${BASE_DOMAIN}` (Traefik)
+
+Valgfritt SSH-låsing etter at du har verifisert innlogging som `deploy`:
+
+```bash
+export INSTALL_HARDEN_SSH=y
+```
+
+**Merk:** HTTP-apper går via Traefik på 80/443 og påvirkes ikke av brannmur-reglene. TCP/UDP-apper med direkte verts-porter kan trenge ekstra UFW-regler (Docker omgår ofte UFW for publiserte porter).
 
 ## Mappestruktur på server
 
