@@ -1,0 +1,15 @@
+http:
+  routers:
+    agent:
+      rule: Host(`agent.apps.webserverpanel.com`)
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      service: agent
+
+  services:
+    agent:
+      loadBalancer:
+        servers:
+          - url: http://agent:2080

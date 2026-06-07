@@ -1,0 +1,5 @@
+# Speil docker.io → mirror.gcr.io for BuildKit / docker buildx (Nixpacks m.m.).
+# Bakgrunn: https://devtron.ai/blog/dodging-docker-hub-rate-limits-the-ultimate-cheat-code-for-your-ci-cd-pipeline/
+
+[registry."docker.io"]
+  mirrors = ["mirror.gcr.io"]

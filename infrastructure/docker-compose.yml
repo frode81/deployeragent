@@ -1,0 +1,125 @@
+name: webserverpanel
+
+networks:
+  webserverpanel-net:
+    external: true
+
+volumes:
+  postgres-data:
+  traefik-data:
+  traefik-dynamic:
+  agent-data:
+
+services:
+  # ── Reverse proxy + TLS ──────────────────────────────────────────
+  traefik:
+    image: traefik:v3.4
+    restart: unless-stopped
+    networks:
+      - webserverpanel-net
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - traefik-data:/data
+      - traefik-dynamic:/dynamic:ro
+    command:
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
+    environment:
+      - ACME_EMAIL=${ACME_EMAIL}
+    labels:
+      - "traefik.enable=false"
+
+  # ── PostgreSQL for all user apps ─────────────────────────────────
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    # Øk global forbindelsesgrense; hver app-bruker har eget CONNECTION LIMIT fra plan
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=${PG_MAX_CONNECTIONS:-300}"
+    networks:
+      - webserverpanel-net
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${PG_ADMIN_USER:-postgres}
+      POSTGRES_PASSWORD: ${PG_ADMIN_PASSWORD}
+      POSTGRES_DB: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_ADMIN_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis for user apps ──────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - webserverpanel-net
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Private Docker registry ──────────────────────────────────────
+  registry:
+    image: registry:3
+    restart: unless-stopped
+    networks:
+      - webserverpanel-net
+    volumes:
+      - agent-data:/var/lib/registry
+    environment:
+      REGISTRY_STORAGE_DELETE_ENABLED: "true"
+
+  # ── Build agent ──────────────────────────────────────────────────
+  agent:
+    build:
+      context: ../agent
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      - webserverpanel-net
+    ports:
+      - "2080:2080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - agent-data:/data
+      - traefik-dynamic:/dynamic
+      - traefik-data:/traefik-data:ro
+    environment:
+      PORT: 2080
+      AGENT_SECRET: ${AGENT_SECRET}
+      BASE_DOMAIN: ${BASE_DOMAIN}
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_ADMIN_USER: ${PG_ADMIN_USER:-postgres}
+      PG_ADMIN_PASSWORD: ${PG_ADMIN_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REGISTRY_HOST: registry:5000
+      WORK_DIR: /tmp/builds
+      DATA_DIR: /data/deployments
+      BACKUP_MAX_FILES_PER_APP: ${BACKUP_MAX_FILES_PER_APP:-5}
+      # Deploy: kø, timeouts og vedlikehold (se infrastructure/.env.example)
+      DEPLOY_MAX_CONCURRENT: ${DEPLOY_MAX_CONCURRENT:-2}
+      DEPLOY_MAX_QUEUED: ${DEPLOY_MAX_QUEUED:-100}
+      DEPLOY_QUEUE_SLOT_WAIT_MS: ${DEPLOY_QUEUE_SLOT_WAIT_MS:-0}
+      DEPLOY_CLONE_TIMEOUT_MS: ${DEPLOY_CLONE_TIMEOUT_MS:-600000}
+      DEPLOY_BUILD_TIMEOUT_MS: ${DEPLOY_BUILD_TIMEOUT_MS:-1800000}
+      DEPLOY_MAINTENANCE_INTERVAL_MS: ${DEPLOY_MAINTENANCE_INTERVAL_MS:-1800000}
+      DEPLOY_ORPHAN_WORK_DIR_MAX_AGE_MS: ${DEPLOY_ORPHAN_WORK_DIR_MAX_AGE_MS:-172800000}
+      DEPLOY_BUILDER_PRUNE_INTERVAL_MS: ${DEPLOY_BUILDER_PRUNE_INTERVAL_MS:-86400000}
+      DEPLOY_PRUNE_ON_FAILURE: ${DEPLOY_PRUNE_ON_FAILURE:-1}
+      DEPLOY_PREBUILT_IMAGE_ALLOWLIST: ${DEPLOY_PREBUILT_IMAGE_ALLOWLIST:-}
+      # Valgfri plattform-default når repo mangler engines/next (standard i kode er 22)
+      NIXPACKS_NODE_VERSION: ${NIXPACKS_NODE_VERSION:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
